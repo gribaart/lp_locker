@@ -446,10 +446,11 @@ contract TokenTimelock {
     /**
      * @dev Add time to lock timer.
      */
-    function addTime(uint256 additionalTime_) public {
+    function addTime(uint256 newReleaseTime_) public {
         require (msg.sender == _beneficiary || msg.sender == _admin);
         require (signed[_beneficiary] && signed[_admin]);
-        _releaseTime = _releaseTime + additionalTime_;
+        require (newReleaseTime_ > _releaseTime);
+        _releaseTime = newReleaseTime_;
         signed[_beneficiary] = false;
         signed[_admin] = false;
     }
