@@ -408,8 +408,14 @@ contract TokenTimelock {
     // beneficiary of tokens after they are released
     address private immutable _beneficiary;
 
+    // beneficiary of tokens after they are released
+    address private immutable _admin;
+
     // timestamp when token release is enabled
-    uint256 private immutable _releaseTime;
+    uint256 private _releaseTime;
+
+
+    mapping(address => bool) signed;
 
     /**
      * @dev Deploys a timelock instance that is able to hold the token specified, and will only release it to
@@ -424,7 +430,23 @@ contract TokenTimelock {
         require(releaseTime_ > block.timestamp, "TokenTimelock: release time is before current time");
         _token = token_;
         _beneficiary = beneficiary_;
+        _admin = msg.sender;
         _releaseTime = releaseTime_;
+    }
+
+    function sign() public {
+        require (msg.sender == _beneficiary || msg.sender == _admin);
+        require (!signed[msg.sender]);
+        signed[msg.sender] = true;
+    }
+
+    /**
+     * @dev Returns the token being held.
+     */
+    function addTime(uint256 additionalTime_) public {
+        require (msg.sender == _beneficiary || msg.sender == _admin);
+        require (signed[_beneficiary] && signed[_admin]);
+        _releaseTime = _releaseTime + additionalTime_;
     }
 
     /**
@@ -461,3 +483,4 @@ contract TokenTimelock {
         token().safeTransfer(beneficiary(), amount);
     }
 }
+
