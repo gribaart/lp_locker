@@ -411,11 +411,13 @@ contract TokenTimelock {
     // beneficiary of tokens after they are released
     address private immutable _admin;
 
-    // timestamp when token release is enabled, time could be added
+    // timestamp when token release is enabled
     uint256 private _releaseTime;
 
-    // multisig storage for lock time adding request
+
     mapping(address => bool) signed;
+
+    mapping(address => uint256) newTime;
 
     /**
      * @dev Deploys a timelock instance that is able to hold the token specified, and will only release it to
@@ -433,26 +435,22 @@ contract TokenTimelock {
         _admin = msg.sender;
         _releaseTime = releaseTime_;
     }
-    
-    /**
-     * @dev Add a sign to confirm adding time to the lock timer.
-     */
-    function sign() public {
+
+    function sign(uint256 newReleaseTime_) public {
         require (msg.sender == _beneficiary || msg.sender == _admin);
-        require (!signed[msg.sender]);
         signed[msg.sender] = true;
+        newTime[msg.sender] = newReleaseTime_;
     }
 
     /**
-     * @dev Add time to lock timer.
+     * @dev Returns the token being held.
      */
     function addTime(uint256 newReleaseTime_) public {
         require (msg.sender == _beneficiary || msg.sender == _admin);
         require (signed[_beneficiary] && signed[_admin]);
-        require (newReleaseTime_ > _releaseTime);
+        require (newTime[msg.sender] == newTime[_beneficiary]);
+        require (_releaseTime < newReleaseTime_);
         _releaseTime = newReleaseTime_;
-        signed[_beneficiary] = false;
-        signed[_admin] = false;
     }
 
     /**
@@ -464,8 +462,6 @@ contract TokenTimelock {
 
     /**
      * @dev Returns the beneficiary that will receive the tokens.
-     */
-    function beneficiary() public view virtual r
      */
     function beneficiary() public view virtual returns (address) {
         return _beneficiary;
