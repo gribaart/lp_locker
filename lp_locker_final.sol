@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: MIT
-// OpenZeppelin Contracts v4.4.1 (token/ERC20/utils/SafeERC20.sol)
-
 pragma solidity ^0.8.1;
 
 /**
@@ -393,63 +391,140 @@ library SafeERC20 {
 }
 
 /**
+ * @dev Provides information about the current execution context, including the
+ * sender of the transaction and its data. While these are generally available
+ * via msg.sender and msg.data, they should not be accessed in such a direct
+ * manner, since when dealing with meta-transactions the account sending and
+ * paying for execution may not be the actual sender (as far as an application
+ * is concerned).
+ *
+ * This contract is only required for intermediate, library-like contracts.
+ */
+abstract contract Context {
+    function _msgSender() internal view virtual returns (address) {
+        return msg.sender;
+    }
+
+    function _msgData() internal view virtual returns (bytes calldata) {
+        return msg.data;
+    }
+}
+
+/**
+ * @dev Contract module which provides a basic access control mechanism, where
+ * there is an account (an owner) that can be granted exclusive access to
+ * specific functions.
+ *
+ * By default, the owner account will be the one that deploys the contract. This
+ * can later be changed with {transferOwnership}.
+ *
+ * This module is used through inheritance. It will make available the modifier
+ * `onlyOwner`, which can be applied to your functions to restrict their use to
+ * the owner.
+ */
+abstract contract Ownable is Context {
+    address private _owner;
+
+    event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+    /**
+     * @dev Initializes the contract setting the deployer as the initial owner.
+     */
+    constructor() {
+        _transferOwnership(_msgSender());
+    }
+
+    /**
+     * @dev Returns the address of the current owner.
+     */
+    function owner() public view virtual returns (address) {
+        return _owner;
+    }
+
+    /**
+     * @dev Throws if called by any account other than the owner.
+     */
+    modifier onlyOwner() {
+        require(owner() == _msgSender(), "Ownable: caller is not the owner");
+        _;
+    }
+
+    /**
+     * @dev Leaves the contract without owner. It will not be possible to call
+     * `onlyOwner` functions anymore. Can only be called by the current owner.
+     *
+     * NOTE: Renouncing ownership will leave the contract without an owner,
+     * thereby removing any functionality that is only available to the owner.
+     */
+    function renounceOwnership() public virtual onlyOwner {
+        _transferOwnership(address(0));
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Can only be called by the current owner.
+     */
+    function transferOwnership(address newOwner) public virtual onlyOwner {
+        require(newOwner != address(0), "Ownable: new owner is the zero address");
+        _transferOwnership(newOwner);
+    }
+
+    /**
+     * @dev Transfers ownership of the contract to a new account (`newOwner`).
+     * Internal function without access restriction.
+     */
+    function _transferOwnership(address newOwner) internal virtual {
+        address oldOwner = _owner;
+        _owner = newOwner;
+        emit OwnershipTransferred(oldOwner, newOwner);
+    }
+}
+
+/**
  * @dev A token holder contract that will allow a beneficiary to extract the
  * tokens after a given release time.
  *
  * Useful for simple vesting schedules like "advisors get all of their tokens
  * after 1 year".
  */
-contract TokenTimelock {
+contract TCGLocker is Ownable {
     using SafeERC20 for IERC20;
 
     // ERC20 basic token contract being held
-    IERC20 private immutable _token;
+    IERC20 private _token;
 
     // beneficiary of tokens after they are released
-    address private immutable _beneficiary;
-
-    // beneficiary of tokens after they are released
-    address private immutable _admin;
+    address private _beneficiary;
 
     // timestamp when token release is enabled
     uint256 private _releaseTime;
 
-
-    mapping(address => bool) signed;
-
-    mapping(address => uint256) newTime;
+    /**
+     * @dev Constructor
+     */
+    constructor() {
+    }
 
     /**
-     * @dev Deploys a timelock instance that is able to hold the token specified, and will only release it to
-     * `beneficiary_` when {release} is invoked after `releaseTime_`. The release time is specified as a Unix timestamp
-     * (in seconds).
+     * @dev Set new beneficiary.
      */
-    constructor(
-        IERC20 token_,
-        address beneficiary_,
-        uint256 releaseTime_
-    ) {
-        require(releaseTime_ > block.timestamp, "TokenTimelock: release time is before current time");
+    function setToken(IERC20 token_) public onlyOwner{
         _token = token_;
-        _beneficiary = beneficiary_;
-        _admin = msg.sender;
-        _releaseTime = releaseTime_;
-    }
-
-    function sign(uint256 newReleaseTime_) public {
-        require (msg.sender == _beneficiary || msg.sender == _admin);
-        signed[msg.sender] = true;
-        newTime[msg.sender] = newReleaseTime_;
     }
 
     /**
-     * @dev Returns the token being held.
+     * @dev Set new beneficiary.
      */
-    function addTime(uint256 newReleaseTime_) public {
-        require (msg.sender == _beneficiary || msg.sender == _admin);
-        require (signed[_beneficiary] && signed[_admin]);
-        require (newTime[msg.sender] == newTime[_beneficiary]);
-        require (_releaseTime < newReleaseTime_);
+    function setBeneficiary(address beneficiary_) public onlyOwner{
+        _beneficiary = beneficiary_;
+    }
+
+    /**
+     * @dev Set new release time.
+     */
+    function setReleaseTime(uint256 newReleaseTime_) public onlyOwner{
+        require(block.timestamp < newReleaseTime_);
+        require(_releaseTime < newReleaseTime_);
         _releaseTime = newReleaseTime_;
     }
 
@@ -487,4 +562,3 @@ contract TokenTimelock {
         token().safeTransfer(beneficiary(), amount);
     }
 }
-
